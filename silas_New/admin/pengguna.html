@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pengguna — SILAS</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<aside>
+  <div class="brand"><div class="logo"></div><div><b>SILAS</b><small>PANEL ADMIN</small></div></div>
+  <div class="note">Masuk sebagai Admin — akses penuh</div>
+  <nav>
+    <div class="grp">Ringkasan</div>
+    <a href="dashboard.html">▦ Dashboard</a>
+    <div class="grp">Kelola Data</div>
+    <a href="laptop.html">▭ Data Laptop</a>
+    <a class="on" href="pengguna.html">☺ Pengguna <span class="b" id="bUser">0</span></a>
+    <div class="grp">Operasional</div>
+    <a href="peminjaman.html">▤ Peminjaman</a>
+    <a href="laporan.html">▥ Laporan</a>
+    <div class="grp">Lainnya</div>
+    <a href="pengaturan.html">⚙ Pengaturan</a>
+  </nav>
+  <div class="me"><div class="av" id="av2">AD</div><div><b class="nm">Admin</b><small>Admin</small></div></div>
+  <a class="out" href="../api/logout.php">⇤ Keluar</a>
+</aside>
+<main>
+  <div class="top">
+    <input type="search" id="cari" placeholder="Cari nama, username, atau kelas…">
+    <div class="chip"><div class="av" id="av1">AD</div><div><b class="nm">Admin</b><small>Admin</small></div></div>
+  </div>
+  <div class="wrap">
+    <div class="head">
+      <div><h1>Pengguna</h1><div class="sub" style="margin-bottom:0">Kelola akun Admin, Petugas, dan Anggota Sekolah.</div></div>
+      <button class="btn pri" id="tambah">＋ Tambah pengguna</button>
+    </div>
+    <div class="card" style="padding:0">
+      <div class="bar">
+        <select id="fr"><option value="">Semua role</option><option value="admin">Admin</option><option value="petugas">Petugas</option><option value="siswa">Siswa</option></select>
+        <span id="info"></span>
+      </div>
+      <div class="scroll"><table>
+        <thead><tr><th>Nama</th><th>Username</th><th>Role</th><th>Kelas</th><th>No. HP</th><th style="text-align:right">Aksi</th></tr></thead>
+        <tbody id="tb"><tr><td colspan="6" class="empty">Memuat data…</td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+</main>
+
+<dialog id="dlg"><form id="frm" method="dialog">
+  <h3 id="jdl">Tambah pengguna</h3>
+  <div class="err" id="err"></div>
+  <input type="hidden" id="id">
+  <label>Nama lengkap<input id="nama" maxlength="100" required></label>
+  <div class="g2">
+    <label>Username<input id="username" maxlength="20" required autocomplete="off"></label>
+    <label>Role<select id="role"><option value="siswa">Siswa</option><option value="petugas">Petugas</option><option value="admin">Admin</option></select></label>
+  </div>
+  <label>Password<input id="password" type="password" autocomplete="new-password"></label>
+  <label id="wk">Kelas<input id="kelas" maxlength="20" placeholder="mis. XII RPL 2"></label>
+  <div class="g2">
+    <label>No. HP<input id="no_hp" maxlength="15"></label>
+    <label>Email<input id="email" type="email" maxlength="255"></label>
+  </div>
+  <div class="act"><button type="button" class="btn" id="batal">Batal</button><button class="btn pri" id="simpan">Simpan</button></div>
+</form></dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id), API = '../api/penggunaAdm.php';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let rows = [], saya = 0, t, d;
+
+function toast(m){ const e=$('toast'); e.textContent=m; e.classList.add('on'); clearTimeout(t); t=setTimeout(()=>e.classList.remove('on'),2800); }
+async function api(method, url, body){
+  const r = await fetch(url, {method, headers:{'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined});
+  if (r.status === 401) { location.href = '../login.html'; throw new Error('Sesi berakhir'); }
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Gagal'); return j;
+}
+async function load(){
+  try {
+    const j = await api('GET', `${API}?q=${encodeURIComponent($('cari').value)}&role=${$('fr').value}`);
+    rows = j.data; saya = j.saya;
+    document.querySelectorAll('.nm').forEach(e => e.textContent = j.nama);
+    $('av1').textContent = $('av2').textContent = j.nama.split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase();
+    $('bUser').textContent = j.hitung.siswa;
+    $('info').textContent = `${j.hitung.admin} admin · ${j.hitung.petugas} petugas · ${j.hitung.siswa} siswa`;
+    $('tb').innerHTML = rows.length ? rows.map(r => `<tr>
+      <td><b>${esc(r.nama)}</b>${r.id_users == saya ? ' <small>(Anda)</small>' : ''}<small>${esc(r.email)}</small></td>
+      <td>${esc(r.username) || '<i>belum ada</i>'}</td>
+      <td><span class="bdg ${r.role}">${r.role}</span></td>
+      <td>${esc(r.kelas) || '—'}</td><td>${esc(r.no_hp) || '—'}</td>
+      <td style="text-align:right"><button class="btn sm" onclick="edit(${r.id_users})">Edit</button>
+      ${r.id_users == saya ? '' : `<button class="btn sm del" onclick="hapus(${r.id_users})">Hapus</button>`}</td></tr>`).join('')
+      : '<tr><td colspan="6" class="empty">Tidak ada pengguna.</td></tr>';
+  } catch (e) { if (e.message !== 'Sesi berakhir') $('tb').innerHTML = `<tr><td colspan="6" class="empty">${esc(e.message)}</td></tr>`; }
+}
+const cekRole = () => $('wk').style.display = $('role').value === 'siswa' ? 'block' : 'none';
+function buka(r){
+  $('err').style.display = 'none'; $('jdl').textContent = r ? 'Edit pengguna' : 'Tambah pengguna';
+  for (const k of ['nama','username','kelas','no_hp','email']) $(k).value = r?.[k] ?? '';
+  $('id').value = r?.id_users ?? ''; $('role').value = r?.role ?? 'siswa'; $('password').value = '';
+  $('password').required = !r;
+  $('password').placeholder = r ? 'Kosongkan jika tidak diubah' : 'Minimal 6 karakter';
+  cekRole(); $('dlg').showModal();
+}
+window.edit = id => buka(rows.find(r => r.id_users == id));
+window.hapus = async id => {
+  const r = rows.find(x => x.id_users == id);
+  if (!confirm(`Hapus pengguna ${r.nama}?`)) return;
+  try { await api('DELETE', `${API}?id=${id}`); toast('Pengguna dihapus'); load(); } catch (e) { toast(e.message); }
+};
+$('role').onchange = cekRole;
+$('tambah').onclick = () => buka(null);
+$('batal').onclick = () => $('dlg').close();
+$('frm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const b = {id_users: +$('id').value || undefined, password: $('password').value, role: $('role').value};
+  for (const k of ['nama','username','kelas','no_hp','email']) b[k] = $(k).value;
+  $('simpan').disabled = true;
+  try { await api(b.id_users ? 'PUT' : 'POST', API, b); $('dlg').close(); toast('Data tersimpan'); load(); }
+  catch (x) { $('err').textContent = x.message; $('err').style.display = 'block'; }
+  $('simpan').disabled = false;
+});
+$('cari').addEventListener('input', () => { clearTimeout(d); d = setTimeout(load, 250); });
+$('fr').onchange = load;
+load();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pengembalian — SILAS Petugas</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="petugas.css">
+</head>
+<body>
+<aside>
+  <div class="brand"><div class="logo"></div><div><b>SILAS</b><small>PANEL PETUGAS</small></div></div>
+  <div class="note">Masuk sebagai Petugas — akses operasional</div>
+  <nav>
+    <div class="grp">Ringkasan</div>
+    <a href="dashboard.html">▦ Dashboard</a>
+    <div class="grp">Operasional</div>
+    <a href="peminjaman.html">▤ Peminjaman <span class="b" id="bPinjam">0</span></a>
+    <a class="on" href="pengembalian.html">↺ Pengembalian <span class="b" id="bKembali">0</span></a>
+    <div class="grp">Data</div>
+    <a href="laptop.html">▭ Data Laptop</a>
+    <a href="laporan.html">▥ Laporan</a>
+  </nav>
+  <div class="me"><div class="av avt">PT</div><div><b class="nm">Petugas</b><small>Petugas</small></div></div>
+  <a class="out" href="../api/logout.php">⇤ Keluar</a>
+</aside>
+
+<main>
+  <div class="top">
+    <input type="search" id="cari" placeholder="Cari peminjam, kelas, atau kode laptop…">
+    <div class="chip"><div class="av avt">PT</div><div><b class="nm">Petugas</b><small>Petugas</small></div></div>
+  </div>
+  <div class="wrap">
+    <h1>Pengembalian</h1>
+    <div class="sub">Catat laptop yang dikembalikan. Yang paling lama lewat batas ditampilkan paling atas.</div>
+
+    <div class="cards">
+      <div class="card stat"><div class="t"><div class="ic" style="background:#ebe8fa">▤</div><span class="tag" style="background:#dff0ec;color:var(--green)">Berjalan</span></div><div class="n" id="sPinjam">0</div><div class="l">Sedang dipinjam</div></div>
+      <div class="card stat"><div class="t"><div class="ic" style="background:#fbecd3;color:var(--amber)">📅</div><span class="tag" style="background:#fbecd3;color:var(--amber)">Hari ini</span></div><div class="n" id="sHari">0</div><div class="l">Jatuh tempo hari ini</div></div>
+      <div class="card stat"><div class="t"><div class="ic" style="background:#fbe3e0;color:var(--red)">⚠</div><span class="tag" style="background:#fbe3e0;color:var(--red)">Tindak lanjut</span></div><div class="n" id="sTelat">0</div><div class="l">Terlambat dikembalikan</div></div>
+      <div class="card stat"><div class="t"><div class="ic" style="background:#dff0ec;color:var(--green)">✓</div><span class="tag" style="background:#dff0ec;color:var(--green)">Bulan ini</span></div><div class="n" id="sBulan">0</div><div class="l">Sudah dikembalikan</div></div>
+    </div>
+
+    <div class="card" style="padding:0;margin-top:16px">
+      <div style="padding:18px 20px 4px"><h3>Menunggu dikembalikan</h3><p>Laptop yang sedang dipinjam siswa</p></div>
+      <div class="scroll"><table>
+        <thead><tr><th>Peminjam</th><th>Laptop</th><th>Tgl pinjam</th><th>Batas kembali</th><th>Status</th><th>Aksi</th></tr></thead>
+        <tbody id="tb"><tr><td colspan="6" class="empty">Memuat data…</td></tr></tbody>
+      </table></div>
+    </div>
+
+    <div class="card" style="padding:0;margin-top:16px">
+      <div style="padding:18px 20px 4px"><h3>Pengembalian terbaru</h3><p>8 pengembalian terakhir yang tercatat</p></div>
+      <div class="scroll"><table>
+        <thead><tr><th>Peminjam</th><th>Laptop</th><th>Dikembalikan</th><th>Kondisi</th><th>Ketepatan</th><th>Keterangan</th></tr></thead>
+        <tbody id="tr"><tr><td colspan="6" class="empty">Memuat data…</td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+</main>
+
+<dialog id="dKembali">
+  <form id="fKembali">
+    <h3>Terima pengembalian</h3>
+    <p class="sub" id="kInfo" style="margin:-6px 0 16px"></p>
+    <div class="err" id="eK"></div>
+    <label>Tanggal dikembalikan<input type="date" id="kT" required></label>
+    <label>Kondisi laptop<select id="kK" required></select></label>
+    <label>Keterangan (opsional)<input id="kN" maxlength="500" placeholder="Contoh: charger lengkap"></label>
+    <div class="act"><button type="button" class="btn" data-tutup>Batal</button><button class="btn pri">Simpan</button></div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2,'0');
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const hariIni = () => iso(new Date());
+const tgl = s => s ? new Date(s + 'T00:00:00').toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
+const API = '../api/pengembalianPtgs.php';
+const KONDISI = ['Baik','Perlu servis ringan','Rusak'];
+let cache = [], timer, idKembali = 0;
+
+function toast(t){ const e = $('toast'); e.textContent = t; e.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('on'), 2800); }
+async function api(url, body){
+  const r = await fetch(url, body ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)} : undefined);
+  if (r.status === 401) { location.href = '../login.html'; throw null; }
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || 'Terjadi kesalahan');
+  return d;
+}
+function badge(lewat){
+  if (lewat > 0)  return `<span class="bdg bad">Terlambat ${lewat} hari</span>`;
+  if (lewat == 0) return '<span class="bdg warn">Jatuh tempo hari ini</span>';
+  return `<span class="bdg ok">${-lewat} hari lagi</span>`;
+}
+function kondBadge(k){ return `<span class="bdg ${k === 'Baik' ? 'ok' : k === 'Rusak' ? 'bad' : 'warn'}" style="text-transform:none">${esc(k || '—')}</span>`; }
+
+async function muat(){
+  try {
+    const d = await api(API + '?' + new URLSearchParams({q: $('cari').value.trim()}));
+    const ini = d.nama.split(' ').map(s => s[0]).join('').slice(0,2).toUpperCase();
+    document.querySelectorAll('.nm').forEach(e => e.textContent = d.nama);
+    document.querySelectorAll('.avt').forEach(e => e.textContent = ini);
+    $('bPinjam').textContent = d.badge.peminjaman; $('bKembali').textContent = d.badge.pengembalian;
+    $('sPinjam').textContent = d.stat.dipinjam; $('sHari').textContent = d.stat.hariIni;
+    $('sTelat').textContent = d.stat.telat;     $('sBulan').textContent = d.stat.bulanIni;
+
+    cache = d.aktif;
+    $('tb').innerHTML = d.aktif.length ? d.aktif.map(r => `<tr>
+      <td><b>${esc(r.nama)}</b><small>${esc(r.kelas || '')}</small></td>
+      <td>${esc(r.kode)}<small>${esc(r.merk)} ${esc(r.tipe || '')}</small></td>
+      <td>${tgl(r.tanggal_pinjam)}</td><td>${tgl(r.akan_kembali)}</td>
+      <td>${badge(r.lewat)}</td>
+      <td><button class="btn sm pri" data-id="${r.id}">Terima kembali</button></td></tr>`).join('')
+      : '<tr><td colspan="6" class="empty">Tidak ada laptop yang sedang dipinjam 🎉</td></tr>';
+
+    $('tr').innerHTML = d.riwayat.length ? d.riwayat.map(r => `<tr>
+      <td><b>${esc(r.nama)}</b><small>${esc(r.kelas || '')}</small></td>
+      <td>${esc(r.kode)}<small>${esc(r.merk)}</small></td>
+      <td>${tgl(r.tanggal_kembali)}</td><td>${kondBadge(r.kondisi_kembali)}</td>
+      <td>${r.telat > 0 ? `<span class="bdg bad">Terlambat ${r.telat} hari</span>` : '<span class="bdg ok">Tepat waktu</span>'}</td>
+      <td style="white-space:normal;min-width:160px">${esc(r.keterangan || '—')}</td></tr>`).join('')
+      : '<tr><td colspan="6" class="empty">Belum ada pengembalian tercatat.</td></tr>';
+  } catch (e) { if (e) $('tb').innerHTML = `<tr><td colspan="6" class="empty">${esc(e.message === 'Failed to fetch' ? 'Gagal memuat data. Pastikan Apache & MySQL XAMPP aktif.' : e.message)}</td></tr>`; }
+}
+
+$('cari').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(muat, 250); });
+document.querySelectorAll('[data-tutup]').forEach(b => b.onclick = () => b.closest('dialog').close());
+
+$('tb').addEventListener('click', e => {
+  const b = e.target.closest('button[data-id]'); if (!b) return;
+  const r = cache.find(x => x.id == b.dataset.id); if (!r) return;
+  idKembali = r.id; $('eK').style.display = 'none';
+  $('kInfo').textContent = `${r.nama} · ${r.kode} (${r.merk})`;
+  $('kT').value = hariIni(); $('kT').min = r.tanggal_pinjam; $('kT').max = hariIni();
+  $('kK').innerHTML = '<option value="" disabled selected>Pilih kondisi…</option>' + KONDISI.map(k => `<option>${k}</option>`).join('');
+  $('kN').value = '';
+  $('dKembali').showModal();
+});
+$('fKembali').addEventListener('submit', async e => {
+  e.preventDefault();
+  const er = $('eK'), btn = e.submitter; er.style.display = 'none'; btn.disabled = true;
+  try {
+    await api(API, {aksi:'kembali', id:idKembali, tanggal_kembali:$('kT').value, kondisi_kembali:$('kK').value, keterangan:$('kN').value});
+    $('dKembali').close(); toast('Pengembalian dicatat'); muat();
+  } catch (x) { if (x) { er.textContent = x.message; er.style.display = 'block'; } }
+  finally { btn.disabled = false; }
+});
+
+muat();
+</script>
+</body>
+</html>
