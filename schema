@@ -1,0 +1,58 @@
+-- SILAS — skema database untuk instalasi baru (struktur akhir, setelah migrasi role)
+CREATE DATABASE IF NOT EXISTS db_peminjaman_laptop CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE db_peminjaman_laptop;
+
+CREATE TABLE users (
+  id_users  INT(11) NOT NULL AUTO_INCREMENT,
+  nama      VARCHAR(100) NOT NULL,
+  username  VARCHAR(20)  NULL,
+  password  VARCHAR(255) NULL,
+  role      ENUM('admin','petugas','siswa') NOT NULL DEFAULT 'siswa',
+  kelas     VARCHAR(20)  NULL,
+  no_hp     VARCHAR(15)  NULL,
+  email     VARCHAR(255) NULL,
+  PRIMARY KEY (id_users),
+  UNIQUE KEY uq_users_username (username)
+) ENGINE=InnoDB;
+
+CREATE TABLE laptops (
+  id_laptop   INT(11) NOT NULL AUTO_INCREMENT,
+  kode_laptop VARCHAR(100) NOT NULL,
+  merk        VARCHAR(20)  NOT NULL,
+  tipe        VARCHAR(10)  NULL,
+  kondisi     VARCHAR(255) NULL,
+  status      VARCHAR(35)  NULL,
+  PRIMARY KEY (id_laptop),
+  UNIQUE KEY uq_laptops_kode (kode_laptop)
+) ENGINE=InnoDB;
+
+CREATE TABLE peminjaman (
+  id_peminjaman  INT(11) NOT NULL AUTO_INCREMENT,
+  id_users       INT(11) NOT NULL,
+  id_laptop      INT(11) NOT NULL,
+  id_petugas     INT(11) NULL,            -- kosong saat pengajuan belum diproses
+  tanggal_pinjam DATE NOT NULL,
+  akan_kembali   DATE NOT NULL,
+  status         VARCHAR(35) NULL,        -- menunggu | dipinjam | dikembalikan | ditolak
+  PRIMARY KEY (id_peminjaman),
+  KEY idx_pinjam_user (id_users),
+  KEY idx_pinjam_laptop (id_laptop),
+  KEY idx_pinjam_petugas (id_petugas),
+  CONSTRAINT fk_peminjaman_users   FOREIGN KEY (id_users)   REFERENCES users(id_users),
+  CONSTRAINT fk_peminjaman_laptop  FOREIGN KEY (id_laptop)  REFERENCES laptops(id_laptop),
+  CONSTRAINT fk_peminjaman_petugas FOREIGN KEY (id_petugas) REFERENCES users(id_users)
+) ENGINE=InnoDB;
+
+CREATE TABLE pengembalian (
+  id_pengembalian INT(11) NOT NULL AUTO_INCREMENT,
+  id_peminjaman   INT(11) NOT NULL,
+  id_petugas      INT(11) NOT NULL,
+  tanggal_kembali DATE NOT NULL,
+  kondisi_kembali VARCHAR(255) NULL,
+  keterangan      TEXT NULL,
+  PRIMARY KEY (id_pengembalian),
+  KEY idx_kembali_pinjam (id_peminjaman),
+  KEY idx_kembali_petugas (id_petugas),
+  CONSTRAINT fk_pengembalian_peminjaman FOREIGN KEY (id_peminjaman) REFERENCES peminjaman(id_peminjaman),
+  CONSTRAINT fk_pengembalian_petugas    FOREIGN KEY (id_petugas)    REFERENCES users(id_users)
+) ENGINE=InnoDB;
