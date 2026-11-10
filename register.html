@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daftar — SILAS</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css">
+</head>
+<body>
+<section class="hero">
+  <div class="brand"><div class="logo"></div><b>SILAS</b></div>
+  <div>
+    <h2>Pinjam laptop sekolah, <em>tanpa ribet.</em></h2>
+    <p>Sistem informasi peminjaman laptop untuk siswa, petugas, dan admin — semua tercatat rapi dalam satu tempat.</p>
+    <ul class="fit">
+      <li><i>💻</i>Ajukan peminjaman kapan saja</li>
+      <li><i>⏱</i>Pantau status dan tenggat pengembalian</li>
+      <li><i>📊</i>Inventaris dan laporan otomatis</li>
+    </ul>
+  </div>
+  <svg class="lap" viewBox="0 0 340 220" fill="none" aria-hidden="true"><rect x="40" y="10" width="260" height="165" rx="14" fill="#1d3a6b" stroke="#ffffff30" stroke-width="2"/><rect x="54" y="24" width="232" height="137" rx="6" fill="#0f1b33"/><rect x="70" y="42" width="90" height="10" rx="5" fill="#e8b366"/><rect x="70" y="62" width="150" height="7" rx="3.5" fill="#ffffff30"/><rect x="70" y="78" width="120" height="7" rx="3.5" fill="#ffffff20"/><rect x="70" y="104" width="62" height="38" rx="8" fill="#2e8070"/><rect x="142" y="104" width="62" height="38" rx="8" fill="#d9963a"/><rect x="214" y="104" width="56" height="38" rx="8" fill="#1e5eff"/><path d="M14 186h312l-16 22H30z" fill="#14264a" stroke="#ffffff30" stroke-width="2"/></svg>
+  <small>© 2026 SILAS</small>
+</section>
+<section class="panel"><div class="card">
+  <div class="mb"><div class="logo"></div><b>SILAS</b></div>
+  <h1>Buat akun siswa</h1>
+  <div class="sub">Akun baru otomatis terdaftar sebagai <b>siswa</b>. Perubahan role hanya dapat dilakukan oleh admin.</div>
+  <div class="msg err" id="err"></div>
+  <form id="frm" autocomplete="off" novalidate>
+    <input class="hp" id="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <div class="f"><label for="nama">Nama lengkap</label><input id="nama" maxlength="100" required></div>
+    <div class="g2">
+      <div class="f"><label for="kelas">Kelas</label><input id="kelas" maxlength="20" placeholder="mis. XII RPL 2" required></div>
+      <div class="f"><label for="username">Username</label><input id="username" maxlength="20" autocomplete="username" required></div>
+    </div>
+    <div class="f"><label for="password">Password</label><input id="password" type="password" autocomplete="new-password" required><button type="button" class="eye" id="eye">Tampilkan</button>
+      <div class="meter"><i id="bar"></i></div><div class="hint" id="hint">Minimal 6 karakter.</div></div>
+    <div class="f"><label for="ulang">Ulangi password</label><input id="ulang" type="password" autocomplete="new-password" required></div>
+    <div class="g2">
+      <div class="f"><label for="email">Email <span style="color:var(--mute);font-weight:400">(opsional)</span></label><input id="email" type="email" maxlength="255"></div>
+      <div class="f"><label for="no_hp">No. HP <span style="color:var(--mute);font-weight:400">(opsional)</span></label><input id="no_hp" maxlength="15"></div>
+    </div>
+    <button class="go" id="go">Daftar</button>
+  </form>
+  <div class="alt">Sudah punya akun? <a href="login.html">Masuk</a></div>
+</div></section>
+<script>
+const $ = id => document.getElementById(id);
+$('eye').onclick = () => { const t = $('password').type === 'password'; $('password').type = $('ulang').type = t ? 'text' : 'password'; $('eye').textContent = t ? 'Sembunyikan' : 'Tampilkan'; };
+$('password').addEventListener('input', () => {
+  const v = $('password').value; let s = 0;
+  if (v.length >= 6) s++; if (v.length >= 10) s++; if (/[a-z]/.test(v) && /[A-Z]/.test(v)) s++; if (/\d/.test(v) && /[^A-Za-z0-9]/.test(v)) s++;
+  const i = Math.max(0, s - 1);
+  $('bar').style.width = v ? [20,40,65,100][i] + '%' : '0';
+  $('bar').style.background = ['#c8453f','#d9963a','#7aa33a','#2e8070'][i];
+  $('hint').textContent = !v ? 'Minimal 6 karakter.' : v.length < 6 ? 'Terlalu pendek.' : ['Cukup','Baik','Kuat','Sangat kuat'][i];
+});
+$('ulang').addEventListener('input', () => $('ulang').classList.toggle('bad', !!$('ulang').value && $('ulang').value !== $('password').value));
+function salah(m){ $('err').textContent = m; $('err').style.display = 'block'; $('err').scrollIntoView({block:'center', behavior:'smooth'}); }
+$('frm').addEventListener('submit', async e => {
+  e.preventDefault(); $('err').style.display = 'none';
+  if ($('password').value !== $('ulang').value) return salah('Konfirmasi password tidak sama');
+  $('go').disabled = true; $('go').textContent = 'Mendaftarkan…';
+  const b = {website: $('website').value}; for (const k of ['nama','kelas','username','password','ulang','email','no_hp']) b[k] = $(k).value;
+  try {
+    const r = await fetch('api/register.php', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(b)});
+    const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Pendaftaran gagal');
+    location.href = 'login.html?daftar=1';
+  } catch (x) { salah(x.message === 'Failed to fetch' ? 'Server tidak terjangkau. Pastikan Apache & MySQL XAMPP aktif.' : x.message); $('go').disabled = false; $('go').textContent = 'Daftar'; }
+});
+</script>
+</body>
+</html>

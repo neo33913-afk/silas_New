@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peminjaman Saya — SILAS</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="siswa.css">
+</head>
+<body>
+<aside>
+  <div class="brand"><div class="logo"></div><div><b>SILAS</b><small>PORTAL SISWA</small></div></div>
+  <div class="note">Masuk sebagai Siswa — pinjam laptop sekolah</div>
+  <nav>
+    <div class="grp">Ringkasan</div>
+    <a href="dashboard.html">▦ Dashboard</a>
+    <div class="grp">Peminjaman</div>
+    <a href="ajukanPinjam.html">＋ Ajukan Pinjam</a>
+    <a class="on" href="peminjamanSaya.html">▤ Peminjaman Saya <span class="b" id="bSaya">0</span></a>
+    <a href="riwayatSiswa.html">↺ Riwayat</a>
+    <div class="grp">Akun</div>
+    <a href="profilSiswa.html">☺ Profil</a>
+  </nav>
+  <div class="me"><div class="av" id="av2">SW</div><div><b class="nm">Siswa</b><small>Siswa</small></div></div>
+  <a class="out" href="../api/logout.php">⇤ Keluar</a>
+</aside>
+<main>
+  <div class="top">
+    <input type="search" id="cari" placeholder="Cari laptop…">
+    <div class="chip"><div class="av" id="av1">SW</div><div><b class="nm">Siswa</b><small>Siswa</small></div></div>
+  </div>
+  <div class="wrap">
+    <div class="head"><div><h1>Peminjaman Saya</h1><div class="sub" style="margin-bottom:0">Pengajuan dan laptop yang sedang kamu pinjam.</div></div>
+      <a class="btn pri" href="ajukanPinjam.html">＋ Ajukan pinjam</a></div>
+    <div class="card" style="padding:0"><div class="scroll"><table>
+      <thead><tr><th>Laptop</th><th>Tgl pinjam</th><th>Harus kembali</th><th>Status</th><th style="text-align:right">Aksi</th></tr></thead>
+      <tbody id="tb"><tr><td colspan="5" class="empty">Memuat data…</td></tr></tbody>
+    </table></div></div>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const API = '../api/peminjamanSiswa.php', SCOPE = 'aktif';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const tgl = s => s ? new Date(s).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
+const lokal = d => new Date(d - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+const geser = (s, n) => { const d = new Date(s); d.setDate(d.getDate()+n); return lokal(d); };
+let _t; const toast = m => { const e=$('toast'); e.textContent=m; e.classList.add('on'); clearTimeout(_t); _t=setTimeout(()=>e.classList.remove('on'),2800); };
+async function api(method, url, body){
+  const r = await fetch(url, {method, headers:{'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined});
+  if (r.status === 401) { location.href = '../login.html'; throw new Error('Sesi berakhir'); }
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Gagal'); return j;
+}
+function akun(nama, aktif){
+  document.querySelectorAll('.nm').forEach(e => e.textContent = nama);
+  $('av1').textContent = $('av2').textContent = nama.split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase();
+  if (aktif !== undefined && $('bSaya')) $('bSaya').textContent = aktif;
+}
+
+let rows = [];
+function badge(r){
+  if (r.status === 'menunggu') return '<span class="bdg warn">Menunggu persetujuan</span>';
+  if (r.status === 'ditolak') return '<span class="bdg bad">Ditolak</span>';
+  if (r.status === 'dikembalikan') return '<span class="bdg ok">Dikembalikan</span>';
+  if (r.sisa < 0)  return `<span class="bdg bad">Terlambat ${-r.sisa} hari</span>`;
+  if (r.sisa == 0) return '<span class="bdg warn">Kembalikan hari ini</span>';
+  return `<span class="bdg admin">Dipinjam · ${r.sisa} hari lagi</span>`;
+}
+function aksi(r){
+  if (SCOPE === 'riwayat') return r.status === 'dikembalikan'
+    ? `<small>${tgl(r.tanggal_kembali)} · ${esc(r.kondisi_kembali)}${r.telat > 0 ? `<br><span style="color:var(--red)">Telat ${r.telat} hari</span>` : ''}</small>` : '—';
+  return r.status === 'menunggu' ? `<button class="btn sm del" onclick="batal(${r.id})">Batalkan</button>` : '<small>Kembalikan ke petugas</small>';
+}
+function render(){
+  const k = $('cari').value.toLowerCase(), list = rows.filter(r => (r.kode + r.merk + r.tipe).toLowerCase().includes(k));
+  $('tb').innerHTML = list.length ? list.map(r => `<tr><td><b>${esc(r.kode)}</b><small>${esc(r.merk)} ${esc(r.tipe)}</small></td>
+    <td>${tgl(r.tanggal_pinjam)}</td><td>${tgl(r.akan_kembali)}</td><td>${badge(r)}</td><td style="text-align:right">${aksi(r)}</td></tr>`).join('')
+    : '<tr><td colspan="5" class="empty">Belum ada peminjaman aktif. Yuk ajukan laptop!</td></tr>';
+}
+async function load(){
+  try { const j = await api('GET', `${API}?scope=${SCOPE}`); rows = j.data; akun(j.nama, j.aktif); render(); }
+  catch (e) { if (e.message !== 'Sesi berakhir') $('tb').innerHTML = `<tr><td colspan="5" class="empty">${esc(e.message)}</td></tr>`; }
+}
+window.batal = async id => {
+  if (!confirm('Batalkan pengajuan ini?')) return;
+  try { await api('POST', API, {aksi:'batal', id}); toast('Pengajuan dibatalkan'); } catch (e) { toast(e.message); }
+  load();
+};
+$('cari').addEventListener('input', render);
+load();
+</script>
+</body>
+</html>

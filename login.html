@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Masuk — SILAS</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="auth.css">
+</head>
+<body>
+<section class="hero">
+  <div class="brand"><div class="logo"></div><b>SILAS</b></div>
+  <div>
+    <h2>Pinjam laptop sekolah, <em>tanpa ribet.</em></h2>
+    <p>Sistem informasi peminjaman laptop untuk siswa, petugas, dan admin — semua tercatat rapi dalam satu tempat.</p>
+    <ul class="fit">
+      <li><i>💻</i>Ajukan peminjaman kapan saja</li>
+      <li><i>⏱</i>Pantau status dan tenggat pengembalian</li>
+      <li><i>📊</i>Inventaris dan laporan otomatis</li>
+    </ul>
+  </div>
+  <svg class="lap" viewBox="0 0 340 220" fill="none" aria-hidden="true"><rect x="40" y="10" width="260" height="165" rx="14" fill="#1d3a6b" stroke="#ffffff30" stroke-width="2"/><rect x="54" y="24" width="232" height="137" rx="6" fill="#0f1b33"/><rect x="70" y="42" width="90" height="10" rx="5" fill="#e8b366"/><rect x="70" y="62" width="150" height="7" rx="3.5" fill="#ffffff30"/><rect x="70" y="78" width="120" height="7" rx="3.5" fill="#ffffff20"/><rect x="70" y="104" width="62" height="38" rx="8" fill="#2e8070"/><rect x="142" y="104" width="62" height="38" rx="8" fill="#d9963a"/><rect x="214" y="104" width="56" height="38" rx="8" fill="#1e5eff"/><path d="M14 186h312l-16 22H30z" fill="#14264a" stroke="#ffffff30" stroke-width="2"/></svg>
+  <small>© 2026 SILAS</small>
+</section>
+<section class="panel"><div class="card">
+  <div class="mb"><div class="logo"></div><b>SILAS</b></div>
+  <h1>Selamat datang kembali</h1>
+  <div class="sub">Masuk untuk mengelola atau meminjam laptop sekolah.</div>
+  <div class="msg ok" id="ok">Akun berhasil dibuat. Silakan masuk.</div>
+  <div class="msg err" id="err"></div>
+  <form id="frm" autocomplete="on">
+    <div class="f"><label for="u">Username</label><input id="u" autocomplete="username" required autofocus></div>
+    <div class="f"><label for="p">Password</label><input id="p" type="password" autocomplete="current-password" required><button type="button" class="eye" id="eye">Tampilkan</button></div>
+    <button class="go" id="go">Masuk</button>
+  </form>
+  <div class="alt">Siswa baru? <a href="register.html">Daftar akun</a></div>
+</div></section>
+<script>
+const $ = id => document.getElementById(id);
+if (new URLSearchParams(location.search).has('daftar')) $('ok').style.display = 'block';
+$('eye').onclick = () => { const t = $('p').type === 'password'; $('p').type = t ? 'text' : 'password'; $('eye').textContent = t ? 'Sembunyikan' : 'Tampilkan'; };
+$('frm').addEventListener('submit', async e => {
+  e.preventDefault(); $('ok').style.display = 'none'; $('err').style.display = 'none';
+  $('go').disabled = true; $('go').textContent = 'Memproses…';
+  try {
+    const r = await fetch('api/login.php', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:$('u').value, password:$('p').value})});
+    const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Login gagal');
+    location.href = d.redirect;
+  } catch (x) {
+    $('err').textContent = x.message === 'Failed to fetch' ? 'Server tidak terjangkau. Pastikan Apache & MySQL XAMPP aktif.' : x.message;
+    $('err').style.display = 'block'; $('go').disabled = false; $('go').textContent = 'Masuk';
+  }
+});
+</script>
+</body>
+</html>
